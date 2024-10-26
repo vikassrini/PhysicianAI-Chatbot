@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chatbot with Avatar</title>
+    <style>
+        /* Style adjustments */
+        body, .chat-container, .input-container, .chat-box {
+            font-family: Arial, sans-serif;
+        }
+        .chat-container {
+            width: 500px;
+            height: 600px;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        .chat-box {
+            padding: 10px;
+            height: 500px;
+            overflow-y: auto;
+            border-bottom: 1px solid #ddd;
+            white-space: pre-wrap;
+        }
+        .user-message { text-align: right; color: blue; font-weight: bold; }
+        .assistant-message { text-align: left; color: green; }
+        .input-container { display: flex; padding: 10px; border-top: 1px solid #ddd; }
+        .input-container input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        .input-container button { margin-left: 10px; padding: 10px; background-color: #007BFF; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .loading-indicator { display: none; text-align: center; color: #999; }
+
+        /* New styles for the avatar */
+        .avatar-container {
+            width: 500px;
+            height: 500px;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 20px auto;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #avatarImage {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="avatar-container">
+            <img id="avatarImage" src="/avatars/greeting.gif" alt="AI Avatar">
+        </div>
+        <div class="chat-box" id="chatBox"></div>
+        <div class="loading-indicator" id="loadingIndicator">Processing...</div>
+        <div class="input-container">
+            <input type="text" id="userInput" placeholder="Type your message..." />
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        let ws;
+        const avatarImage = document.getElementById('avatarImage');
+        const userInput = document.getElementById('userInput');
+        let talkingTimeout;
+
+        // WebSocket connection function
+        function connectWebSocket() {
+            ws = new WebSocket('ws://localhost:8000/ws/chat');
+            ws.onopen = () => {
+                console.log("WebSocket connected.");
+                avatarImage.src = '/avatars/greeting.gif';
+            };
+            ws.onmessage = (event) => {
+                displayMessage(event.data, 'assistant');
+                hideLoadingIndicator();
+                avatarImage.src = '/avatars/talking.gif';
+                clearTimeout(talkingTimeout);
+                talkingTimeout = setTimeout(() => {
+                    avatarImage.src = '/avatars/greeting.gif';
+                }, 10000); // Change to greeting after 10 seconds of talking
+            };
+            ws.onerror = (error) => console.error("WebSocket error:", error);
+            ws.onclose = () => {
+                console.log("WebSocket closed. Reconnecting...");
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        function sendMessage() {
+            const message = userInput.value.trim();
+            if (message !== "") {
+                displayMessage(message, 'user');
+                ws.send(message);
+                showLoadingIndicator();
+                userInput.value = "";
+                avatarImage.src = '/avatars/thinking.gif'; // Change to thinking when waiting for response
+            }
+        }
+
+        function displayMessage(message, type) {
+            const chatBox = document.getElementById("chatBox");
+            const messageElement = document.createElement("p");
+            messageElement.className = type === 'user' ? "user-message" : "assistant-message";
+            messageElement.textContent = type === 'user' ? `You: ${message}` : `Assistant: ${message}`;
+            chatBox.appendChild(messageElement);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            if (type === 'assistant') {
+                avatarImage.src = '/avatars/talking.gif';
+                clearTimeout(talkingTimeout);
+                talkingTimeout = setTimeout(() => {
+                    avatarImage.src = '/avatars/greeting.gif';
+                }, 10000); // Change to greeting after 10 seconds of talking
+            }
+        }
+
+        function showLoadingIndicator() {
+            document.getElementById("loadingIndicator").style.display = "block";
+        }
+
+        function hideLoadingIndicator() {
+            document.getElementById("loadingIndicator").style.display = "none";
+        }
+
+        userInput.addEventListener('input', () => {
+            if (userInput.value.trim() !== '') {
+                avatarImage.src = '/avatars/listening.gif'; // Change to listening when user is typing
+            } else {
+                avatarImage.src = '/avatars/greeting.gif'; // Change back to greeting if input is empty
+            }
+        });
+
+        userInput.addEventListener('focus', () => {
+            if (userInput.value.trim() === '') {
+                avatarImage.src = '/avatars/greeting.gif'; // Keep greeting when focused but empty
+            } else {
+                avatarImage.src = '/avatars/listening.gif'; // Change to listening if there's text
+            }
+        });
+
+        userInput.addEventListener('blur', () => {
+            if (userInput.value.trim() === '') {
+                avatarImage.src = '/avatars/greeting.gif'; // Change to greeting when blurred and empty
+            }
+        });
+
+        window.onload = () => {
+            connectWebSocket();
+            avatarImage.src = '/avatars/greeting.gif'; // Set initial avatar to greeting
+        };
+    </script>
+</body>
+</html>
