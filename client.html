@@ -68,7 +68,8 @@
         let ws;
         const avatarImage = document.getElementById('avatarImage');
         const userInput = document.getElementById('userInput');
-        let talkingTimeout;
+        let audioPlayer;
+        let isAudioPlaying = false;
 
         // WebSocket connection function
         function connectWebSocket() {
@@ -77,14 +78,45 @@
                 console.log("WebSocket connected.");
                 avatarImage.src = '/avatars/greeting.gif';
             };
-            ws.onmessage = (event) => {
-                displayMessage(event.data, 'assistant');
-                hideLoadingIndicator();
-                avatarImage.src = '/avatars/talking.gif';
-                clearTimeout(talkingTimeout);
-                talkingTimeout = setTimeout(() => {
-                    avatarImage.src = '/avatars/greeting.gif';
-                }, 10000); // Change to greeting after 10 seconds of talking
+            ws.onmessage = async (event) => {
+                if (event.data instanceof Blob) {
+                    // Handle audio data
+                    const audioBlob = event.data;
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    
+                    // Create new audio player if doesn't exist
+                    if (!audioPlayer) {
+                        audioPlayer = new Audio();
+                    }
+                    
+                    audioPlayer.src = audioUrl;
+                    
+                    // Set avatar to talking gif when audio starts
+                    audioPlayer.onplay = () => {
+                        isAudioPlaying = true;
+                        avatarImage.src = '/avatars/talking.gif';
+                    };
+                    
+                    // Change avatar back to greeting when audio ends
+                    audioPlayer.onended = () => {
+                        isAudioPlaying = false;
+                        avatarImage.src = '/avatars/greeting.gif';
+                        URL.revokeObjectURL(audioUrl); // Clean up the blob URL
+                        
+                        // Check if user is typing after audio ends
+                        if (userInput.value.trim() !== '') {
+                            avatarImage.src = '/avatars/listening.gif';
+                        }
+                    };
+                    
+                    // Play the audio
+                    await audioPlayer.play();
+                    
+                } else {
+                    // Handle text message
+                    displayMessage(event.data, 'assistant');
+                    hideLoadingIndicator();
+                }
             };
             ws.onerror = (error) => console.error("WebSocket error:", error);
             ws.onclose = () => {
@@ -111,14 +143,6 @@
             messageElement.textContent = type === 'user' ? `You: ${message}` : `Assistant: ${message}`;
             chatBox.appendChild(messageElement);
             chatBox.scrollTop = chatBox.scrollHeight;
-
-            if (type === 'assistant') {
-                avatarImage.src = '/avatars/talking.gif';
-                clearTimeout(talkingTimeout);
-                talkingTimeout = setTimeout(() => {
-                    avatarImage.src = '/avatars/greeting.gif';
-                }, 10000); // Change to greeting after 10 seconds of talking
-            }
         }
 
         function showLoadingIndicator() {
@@ -130,24 +154,30 @@
         }
 
         userInput.addEventListener('input', () => {
-            if (userInput.value.trim() !== '') {
-                avatarImage.src = '/avatars/listening.gif'; // Change to listening when user is typing
-            } else {
-                avatarImage.src = '/avatars/greeting.gif'; // Change back to greeting if input is empty
+            if (!isAudioPlaying) {
+                if (userInput.value.trim() !== '') {
+                    avatarImage.src = '/avatars/listening.gif';
+                } else {
+                    avatarImage.src = '/avatars/greeting.gif';
+                }
             }
         });
 
         userInput.addEventListener('focus', () => {
-            if (userInput.value.trim() === '') {
-                avatarImage.src = '/avatars/greeting.gif'; // Keep greeting when focused but empty
-            } else {
-                avatarImage.src = '/avatars/listening.gif'; // Change to listening if there's text
+            if (!isAudioPlaying) {
+                if (userInput.value.trim() === '') {
+                    avatarImage.src = '/avatars/greeting.gif';
+                } else {
+                    avatarImage.src = '/avatars/listening.gif';
+                }
             }
         });
 
         userInput.addEventListener('blur', () => {
-            if (userInput.value.trim() === '') {
-                avatarImage.src = '/avatars/greeting.gif'; // Change to greeting when blurred and empty
+            if (!isAudioPlaying) {
+                if (userInput.value.trim() === '') {
+                    avatarImage.src = '/avatars/greeting.gif';
+                }
             }
         });
 

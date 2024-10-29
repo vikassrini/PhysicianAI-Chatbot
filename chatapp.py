@@ -9,6 +9,9 @@ from datetime import datetime
 import os
 from avatar_generator import create_avatar_app
 from chatllm import OpenAIService
+from gtts import gTTS
+import os
+import io
 
 app = FastAPI()
 keys = toml.load("keys.toml")
@@ -175,9 +178,13 @@ async def websocket_chat(websocket: WebSocket):
 
             # Generate a response using the OpenAIService
             response = await openai_service.get_gpt_response(manager.sessions[websocket], data)
-            print("Response Generated.")
-            
+            tts=gTTS(text=response,lang="en",tld="com")
+            audio_fp = io.BytesIO()
+            tts.write_to_fp(audio_fp)
+            audio_fp.seek(0)
             # Send the response back to the client and save the session
             await manager.send_message(websocket, response, data)
+            await websocket.send_bytes(audio_fp.read())
+            print("Audio response sent.")
     except:
         await manager.disconnect(websocket)
