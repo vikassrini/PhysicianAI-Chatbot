@@ -1,7 +1,7 @@
 # RealTime Physician Chatbot
 ## Demo of my chatbot working.
 
-https://github.com/user-attachments/assets/7c57b35d-571e-4ec1-ada7-503385c7d6fe
+C:\Users\vikas\Downloads\chatbot\real ai avatar chatbot working..mp4
 
 
 ## Steps to run the bot
@@ -37,7 +37,7 @@ https://github.com/user-attachments/assets/7c57b35d-571e-4ec1-ada7-503385c7d6fe
 
     Create .toml file
     ```
-    touch .secrets/<file-name>.toml
+    touch keys.toml
     ```
     You can get your OpenAI API key from here - [Link to get OpenAI API key](https://openai.com/blog/openai-api)
     ```
@@ -46,7 +46,7 @@ https://github.com/user-attachments/assets/7c57b35d-571e-4ec1-ada7-503385c7d6fe
     service_1_key = 
     ```
 
-6. **Setup MongoDB:**
+6. **Setup MongoDB:(optional)**
     [Download MongoDB from here](https://www.mongodb.com/try/download/community-kubernetes-operator)
     Connect to the database using the connection string.
 
