@@ -91,7 +91,7 @@
     <div id="model-container">
         <model-viewer 
             id="avatarModel"
-            src="/models/femalephysician.glb"
+            src="/models/femalegreetingtest.glb"
             camera-controls
             auto-rotate
             shadow-intensity="1"
@@ -122,6 +122,12 @@
         const userInput = document.querySelector('#user-input');
         const sendButton = document.querySelector('#send-button');
         let isProcessing = false;
+        let audioPlaying = false;
+
+        // Function to switch models
+        function switchModel(modelPath) {
+            modelViewer.src = modelPath;
+        }
 
         // Initialize WebSocket connection
         const ws = new WebSocket('ws://localhost:8000/ws/chat');
@@ -134,11 +140,13 @@
         ws.onerror = function(event) {
             console.error('WebSocket error:', event);
             displayMessage('Error: WebSocket connection failed', 'error');
+            switchModel('/models/femalegreetingtest.glb');
         };
 
         ws.onclose = function(event) {
             console.log('WebSocket connection closed:', event);
             displayMessage('Connection closed', 'error');
+            switchModel('/models/femalegreetingtest.glb');
         };
 
         ws.onmessage = function(event) {
@@ -148,8 +156,22 @@
             }
 
             if (event.data instanceof Blob) {
+                // Switch to physician model when starting to speak
+                switchModel('/models/femalephysician.glb');
+                
                 // Handle audio response
                 const audio = new Audio(URL.createObjectURL(event.data));
+                
+                audio.onplay = () => {
+                    audioPlaying = true;
+                };
+                
+                audio.onended = () => {
+                    audioPlaying = false;
+                    // Switch back to greeting model when done speaking
+                    switchModel('/models/femalegreetingtest.glb');
+                };
+                
                 audio.play();
             } else {
                 // Handle text response
@@ -167,7 +189,7 @@
         });
 
         function sendMessage() {
-            if (isProcessing) return;
+            if (isProcessing || audioPlaying) return;
             const message = userInput.value.trim();
             if (message === '') return;
 
@@ -182,7 +204,7 @@
         function displayMessage(message, sender) {
             const messageElement = document.createElement('div');
             messageElement.textContent = message;
-            messageElement.className = sender;
+            messageElement.className = `message ${sender}`;
             chatMessages.appendChild(messageElement);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
