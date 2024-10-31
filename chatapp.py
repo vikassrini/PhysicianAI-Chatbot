@@ -5,14 +5,21 @@ from typing import List
 import motor.motor_asyncio
 import uuid
 import toml
-from datetime import datetime
+from datetime import datetime,timedelta
 import os
 from avatar_generator import create_avatar_app
 from chatllm import OpenAIService
 from gtts import gTTS
 import os
 import io
+import jwt
+from fastapi.staticfiles import StaticFiles
 
+
+SECRET_KEY = "vsrinivasa"
+ALGORITHM = "HS256"
+
+    
 app = FastAPI()
 keys = toml.load("keys.toml")
 key = keys["api_keys"]["service_1_key"]
@@ -25,9 +32,13 @@ openai_service = OpenAIService(api_key=key)
 # Create and mount the avatar generator app
 avatar_app = create_avatar_app()
 app.mount("/avatar", avatar_app)
-
+app.mount("/models", StaticFiles(directory="models"), name="models")
 # Serve static files (including generated avatars)
 app.mount("/avatars", StaticFiles(directory="avatars"), name="avatars")
+
+# Add these near your other StaticFiles mounts
+app.mount("/models", StaticFiles(directory="models"), name="models")
+app.mount("/videos", StaticFiles(directory="."), name="videos")
 
 class ConnectionManager:
     def __init__(self) -> None:
