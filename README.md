@@ -1,8 +1,7 @@
 # RealTime Physician Chatbot
 ## Demo of my chatbot working.
 
-C:\Users\vikas\Downloads\chatbot\real ai avatar chatbot working..mp4
-
+https://github.com/user-attachments/assets/f14ecbc1-e4f8-4f73-8393-8820b244af91
 
 ## Steps to run the bot
 1. **Clone the Repository:**
