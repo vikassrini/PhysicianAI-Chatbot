@@ -1,7 +1,10 @@
 # RealTime Physician Chatbot
 ## Demo of my chatbot working.
 
-https://github.com/user-attachments/assets/f14ecbc1-e4f8-4f73-8393-8820b244af91
+
+https://github.com/user-attachments/assets/9d0f6dc8-ebfe-4135-bd94-2031fa970dc0
+
+
 
 ## Steps to run the bot
 1. **Clone the Repository:**
