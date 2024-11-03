@@ -1,7 +1,11 @@
 from openai import AsyncOpenAI, OpenAIError
 import tiktoken
 import regex as re 
+import pdfplumber
+import weaviate
 
+# Initialize the client
+client = weaviate.Client("http://localhost:8080")
 class OpenAIService:
     def __init__(self, api_key: str):
         self.client = AsyncOpenAI(api_key=api_key)
@@ -26,6 +30,43 @@ class OpenAIService:
                 "answer: summary of all assistant responses followed by 3 periods (..)."
             )
         }
+    async def store_chunks_in_weaviate(self, chunks):
+        
+        try:
+            # Ensure the 'client' is initialized and available
+            class_name = "TextChunk"
+            global client
+            # Check if class already exists, if not, create it
+            if not client.schema.contains({"class": class_name}):
+                schema = {
+                    "class": class_name,
+                    "vectorizer": "text2vec-openai",  # Built-in vectorizer
+                    "properties": [
+                        {
+                            "name": "content",
+                            "dataType": ["text"],
+                        },
+                    ],
+                }
+                client.schema.create_class(schema)
+                print("Class created successfully in Weaviate.")
+            else:
+                print("Class already exists.")
+        except Exception as e:
+            print(f"An error occurred while processing Weaviate schema: {e}")
+            
+            # Store each chunk in Weaviate
+            for chunk in chunks:
+                data_object = {
+                    "content": chunk,
+                }
+
+                # Add the data object to Weaviate
+                client.data_object.create(
+                    data_object=data_object,
+                    class_name=class_name,
+                )
+                print(f"Stored chunk in Weaviate: {chunk[:60]}...") 
 
     def count_tokens(self, messages):
         """
@@ -48,7 +89,17 @@ class OpenAIService:
             total_tokens += len(encoding.encode(message['content']))
         return total_tokens
     
-    async def get_gpt_response(self, sessiondata, userprompt):
+    async def query_weaviate(self, query_text):
+    
+        response = client.query.get("TextChunk", ["content"]) \
+                .with_near_text({"concepts": [query_text]}) \
+                .with_limit(5).do()
+        matches = [result["content"] for result in response["data"]["Get"]["TextChunk"]]
+        print("Top matches from Weaviate:", matches)
+        return matches
+
+
+    async def get_gpt_response(self, sessiondata, userprompt,filepath=None):
         """
         Returns the response string for the user request after
         constructing a prompt based on the previous context, system
@@ -76,9 +127,22 @@ class OpenAIService:
                 dic = {"role": "assistant", "content": f"{answer}"}
                 message.append(dic)
 
-            userprompt = {"role": "user", "content": f"{userprompt}"}
+            if filepath:
+                with pdfplumber.open(filepath) as pdf:
+                    pages=pdf.pages
+                    chunks=[] 
+                    for page in pages:
+                        text=page.extract_text()
+                        chunks.append(text)
+                    pdf.close()
+                await self.store_chunks_in_weaviate(chunks)
+                
+                relevant_chunks = await self.query_weaviate(userprompt)
+                userprompt = {"role": "user", "content": f"{userprompt} + consider this context while responding: {relevant_chunks}"}
+            else: 
+                userprompt = {"role": "user", "content": f"{userprompt}"}
 
-            if self.count_tokens(message) > 3096:
+            if self.count_tokens(message) > 2096:
                 print("Token limit exceeded. Summarizing context...")  
                 summarized_question, summarized_answer = await self.summarize_context(message)
                 message = [summarized_question, summarized_answer]  

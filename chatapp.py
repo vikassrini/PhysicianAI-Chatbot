@@ -12,9 +12,11 @@ from chatllm import OpenAIService
 from gtts import gTTS
 import os
 import io
-import jwt
+import base64
 from fastapi.staticfiles import StaticFiles
-
+import json
+from PyPDF2 import PdfFileReader
+from fastapi import WebSocketDisconnect
 
 SECRET_KEY = "vsrinivasa"
 ALGORITHM = "HS256"
@@ -64,7 +66,9 @@ class ConnectionManager:
             "SessionID": session_id,
             "UserID": userid,
             "SessionStart": sessionstart,
-            "QandA": {}  
+            "QandA": {},
+            "isReportUploaded":False,
+            "filepath":None
         }
 
     async def disconnect(self, websocket: WebSocket):
@@ -170,32 +174,89 @@ manager = ConnectionManager()
 
 @app.websocket("/ws/chat")
 async def websocket_chat(websocket: WebSocket):
-    """
-    Handles the websocket chatting using functions defined
-    in the OpenAIService. 
-
-    Parameters
-    ----------
-    websocket : WebSocket
-        Object of FAST API's WebSocket class, used to establish and
-        manage websocket connection with the server.
-    """
     await manager.connect(websocket)
     try:
         while True:
             # Receive a message from the client
             data = await manager.receive_message(websocket)
+            with open("Shatateri.txt","w") as filer:
+                filer.write(str(data))
             print(f"Message received: {data}")
 
-            # Generate a response using the OpenAIService
-            response = await openai_service.get_gpt_response(manager.sessions[websocket], data)
-            tts=gTTS(text=response,lang="en",tld="com")
-            audio_fp = io.BytesIO()
-            tts.write_to_fp(audio_fp)
-            audio_fp.seek(0)
-            # Send the response back to the client and save the session
-            await manager.send_message(websocket, response, data)
-            await websocket.send_bytes(audio_fp.read())
-            print("Audio response sent.")
-    except:
+            try:
+                message = json.loads(data)
+                print(f"Parsed message: {message}")
+            except json.JSONDecodeError as e:
+                print(f"JSON parsing error: {e}")
+                await websocket.send_text("Error: Invalid message format")
+                continue
+
+            message_type = message.get("type")
+            user_message = message.get("message", "")
+
+            print(f"Message type: {message_type}")
+            print(f"User message: {user_message}")
+
+            try:
+                if message_type == "file":
+                    content = message.get("content")
+                    if not content:
+                        await websocket.send_text("Error: No file content provided")
+                        continue
+
+                    # Handle file upload
+                    if content.startswith("data:application/pdf;base64,"):
+                        base64_data = content.split(",")[1]
+                        pdf_data = base64.b64decode(base64_data)
+                        
+                        os.makedirs("uploads", exist_ok=True)
+                        file_path = "uploads/received_file.pdf"
+                        with open(file_path, "wb") as pdf_file:
+                            pdf_file.write(pdf_data)
+                        manager.sessions[websocket]["isReportUploaded"]=True
+                        manager.sessions[websocket]["filepath"]=file_path
+                        
+                        response = await openai_service.get_gpt_response(
+                            manager.sessions[websocket], 
+                            user_message, 
+                            file_path
+                        )
+                    else:
+                        await websocket.send_text("Error: Invalid file format")
+                        continue
+
+                elif message_type == "text":
+                    if manager.sessions[websocket]["isReportUploaded"]==True:
+                        response = await openai_service.get_gpt_response(
+                        manager.sessions[websocket], 
+                        user_message,manager.sessions[websocket]["filepath"])
+                    else:
+                        response = await openai_service.get_gpt_response(
+                            manager.sessions[websocket], 
+                            user_message
+                        )
+                else:
+                    await websocket.send_text("Error: Invalid message type")
+                    continue
+
+                # Generate and send audio response
+                tts = gTTS(text=response, lang="en", tld="com")
+                audio_fp = io.BytesIO()
+                tts.write_to_fp(audio_fp)
+                audio_fp.seek(0)
+
+                # Send responses
+                await manager.send_message(websocket, response, user_message)
+                await websocket.send_bytes(audio_fp.read())
+                print("Response sent successfully")
+
+            except Exception as e:
+                print(f"Error processing message: {e}")
+                await websocket.send_text(f"Error: {str(e)}")
+
+    except WebSocketDisconnect:
+        print("WebSocket disconnected")
+        await manager.disconnect(websocket)
+    except Exception as e:
+        print(f"Unexpected error: {e}")
         await manager.disconnect(websocket)

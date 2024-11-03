@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Chatbot with Model Viewer</title>
     <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
         body, html {
             margin: 0;
@@ -85,6 +86,28 @@
             color: #666;
             font-style: italic;
         }
+
+        .upload-btn {
+            padding: 8px 15px;
+            margin-right: 10px;
+            border: none;
+            border-radius: 4px;
+            background-color: #f0f0f0;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .upload-btn:hover {
+            background-color: #e0e0e0;
+        }
+
+        .chat-input-container {
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+            background-color: white;
+            border-top: 1px solid #ddd;
+        }
     </style>
 </head>
 <body>
@@ -110,9 +133,13 @@
     </div>
     <div id="chat-container">
         <div id="chat-messages"></div>
-        <div class="input-container">
-            <input type="text" id="user-input" placeholder="Type your message here...">
-            <button id="send-button">Send</button>
+        <div class="chat-input-container">
+            <input type="file" id="fileInput" accept=".pdf" style="display: none;">
+            <button id="uploadButton" class="upload-btn">
+                <i class="fas fa-paperclip"></i> Upload PDF
+            </button>
+            <input type="text" id="messageInput" placeholder="Type your message...">
+            <button id="sendButton">Send</button>
         </div>
     </div>
 
@@ -123,6 +150,7 @@
         const sendButton = document.querySelector('#send-button');
         let isProcessing = false;
         let audioPlaying = false;
+        let selectedFile = null;
 
         // Function to switch models
         function switchModel(modelPath) {
@@ -140,13 +168,11 @@
         ws.onerror = function(event) {
             console.error('WebSocket error:', event);
             displayMessage('Error: WebSocket connection failed', 'error');
-            switchModel('/models/femalegreetingtest.glb');
         };
 
         ws.onclose = function(event) {
             console.log('WebSocket connection closed:', event);
             displayMessage('Connection closed', 'error');
-            switchModel('/models/femalegreetingtest.glb');
         };
 
         ws.onmessage = function(event) {
@@ -181,25 +207,54 @@
             isProcessing = false;
         };
 
-        sendButton.addEventListener('click', sendMessage);
-        userInput.addEventListener('keypress', function(event) {
-            if (event.key === 'Enter') {
-                sendMessage();
+        document.getElementById('uploadButton').addEventListener('click', () => {
+            document.getElementById('fileInput').click();
+        });
+
+        document.getElementById('fileInput').addEventListener('change', (event) => {
+            selectedFile = event.target.files[0];
+            if (selectedFile) {
+                document.getElementById('uploadButton').style.backgroundColor = '#4CAF50';
             }
         });
 
-        function sendMessage() {
-            if (isProcessing || audioPlaying) return;
-            const message = userInput.value.trim();
-            if (message === '') return;
+        document.getElementById('sendButton').addEventListener('click', async () => {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (!message) return;
 
+            // Add message to chat
             displayMessage('You: ' + message, 'user');
-            userInput.value = '';
-            isProcessing = true;
 
-            ws.send(message);
-            displayTypingIndicator();
-        }
+            if (selectedFile) {
+                // Handle file upload with message
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const base64Data = e.target.result;
+                    const payload = {
+                        type: 'file',
+                        content: base64Data,
+                        message: message
+                    };
+                    ws.send(JSON.stringify(payload));
+                };
+                reader.readAsDataURL(selectedFile);
+                
+                // Reset file selection
+                selectedFile = null;
+                document.getElementById('uploadButton').style.backgroundColor = '';
+            } else {
+                // Send text-only message
+                const payload = {
+                    type: 'text',
+                    message: message
+                };
+                ws.send(JSON.stringify(payload));
+            }
+
+            messageInput.value = '';
+        });
 
         function displayMessage(message, sender) {
             const messageElement = document.createElement('div');
