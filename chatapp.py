@@ -7,7 +7,7 @@ import uuid
 import toml
 from datetime import datetime,timedelta
 import os
-from avatar_generator import create_avatar_app
+
 from chatllm import OpenAIService
 from gtts import gTTS
 import os
@@ -32,11 +32,10 @@ collection = db["sessions"]
 openai_service = OpenAIService(api_key=key)
 
 # Create and mount the avatar generator app
-avatar_app = create_avatar_app()
-app.mount("/avatar", avatar_app)
+
 app.mount("/models", StaticFiles(directory="models"), name="models")
 # Serve static files (including generated avatars)
-app.mount("/avatars", StaticFiles(directory="avatars"), name="avatars")
+
 
 # Add these near your other StaticFiles mounts
 app.mount("/models", StaticFiles(directory="models"), name="models")
