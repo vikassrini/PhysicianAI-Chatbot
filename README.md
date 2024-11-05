@@ -1,4 +1,5 @@
 # RealTime Physician Chatbot
+<p>The user can ask any health realted question to the chatbot. The user may upload pdf's of his helath report to ask questions based on them as well. Please pass only 1 pdf per session and if the first question is not aanswered proprly please try again before closing the application.</p>
 ## Demo of my chatbot working.
 
 
