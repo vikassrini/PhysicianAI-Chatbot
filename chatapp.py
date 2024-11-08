@@ -178,10 +178,6 @@ async def websocket_chat(websocket: WebSocket):
         while True:
             # Receive a message from the client
             data = await manager.receive_message(websocket)
-            with open("Shatateri.txt","w") as filer:
-                filer.write(str(data))
-            print(f"Message received: {data}")
-
             try:
                 message = json.loads(data)
                 print(f"Parsed message: {message}")
