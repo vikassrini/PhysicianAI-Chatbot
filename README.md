@@ -54,17 +54,13 @@ https://github.com/user-attachments/assets/9d0f6dc8-ebfe-4135-bd94-2031fa970dc0
     [Download MongoDB from here](https://www.mongodb.com/try/download/community-kubernetes-operator)
     Connect to the database using the connection string.
 7. **Setup Weaviate:**
-    1. Install the weaviate python client using the following command:
-        ```        
-        pip install -U weaviate-client
-        ```       
-    2. Run a local instance of Weavitate:
+    Run a local instance of Weavitate:
         Install docker on your machine , do this following this [Installation Guide](https://docs.docker.com/get-started/get-docker/).
         
-       Run the following command to start weavite 
-         ```   
-         docker compose up
-         ``` 
+   Run the following command to start weavite 
+   ```   
+   docker compose up
+   ``` 
 8. **Run the application using the command:**
     ```
     uvicorn chatapp:app --reload
