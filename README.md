@@ -34,7 +34,7 @@ https://github.com/user-attachments/assets/9d0f6dc8-ebfe-4135-bd94-2031fa970dc0
     ```
 
 4. **Install Required Dependencies:**
-```pip install -r reuqirements.txt```
+```pip install -r requirements.txt```
 
 
 5. **Set up the Environment Variables:**
